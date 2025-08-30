@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>學生登入與作答</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial,"PingFang TC","Microsoft JhengHei",sans-serif;background:#f6f7fb;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+    .card{background:#fff;max-width:420px;width:92%;padding:28px;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+    h1{margin:0 0 10px;font-size:22px}
+    p.sub{margin:0 0 18px;color:#666;font-size:14px}
+    .field{margin:12px 0}
+    .field label{display:block;font-size:14px;margin-bottom:6px;color:#444}
+    .field input{width:100%;box-sizing:border-box;border:1px solid #d9d9e3;border-radius:10px;padding:12px 14px;font-size:16px;outline:none}
+    .field input:focus{border-color:#7aa2ff;box-shadow:0 0 0 3px rgba(122,162,255,.2)}
+    button{width:100%;padding:12px 14px;border:0;border-radius:12px;font-size:16px;cursor:pointer;background:#2d7ff9;color:#fff}
+    button:hover{filter:brightness(1.05)}
+    .err{margin-top:12px;color:#d93025;font-weight:600;display:none}
+    .ok{display:none;text-align:center}
+    .ok .name{font-weight:700}
+    .link-btn{display:inline-block;margin-top:16px;padding:12px 18px;border-radius:12px;background:#28a745;color:#fff;text-decoration:none}
+    .meta{margin-top:10px;color:#555;font-size:14px}
+    .muted{color:#777;font-size:13px;margin-top:10px}
+  </style>
+</head>
+<body>
+  <div class="card" id="panel">
+    <div id="login">
+      <h1>學生登入</h1>
+      <p class="sub">請輸入「帳號／密碼／驗證碼」。</p>
+      <form id="loginForm">
+        <div class="field">
+          <label for="username">帳號</label>
+          <input id="username" type="text" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="password">密碼</label>
+          <input id="password" type="password" autocomplete="current-password" required />
+        </div>
+        <div class="field">
+          <label for="token">驗證碼</label>
+          <input id="token" type="text" required />
+        </div>
+        <button type="submit">登入</button>
+      </form>
+      <div id="err" class="err">帳號／密碼／驗證碼不正確，請再試一次。</div>
+      <div class="muted">登入成功後，系統會隨機提供一份問卷連結。</div>
+    </div>
+
+    <div id="ok" class="ok">
+      <h1>登入成功！</h1>
+      <div class="meta">
+        歡迎 <span class="name" id="nameZh"></span>（<span id="nameEn"></span>）
+        <div id="ts"></div>
+      </div>
+      <a id="quizLink" class="link-btn" href="#" target="_blank" rel="noopener noreferrer">點我開始作答</a>
+      <div class="muted">請完成問卷後再關閉此頁面。</div>
+    </div>
+  </div>
+
+  <script>
+    // !!! 將此處換成你部署好的 GAS Web App URL !!!
+    const SCRIPT_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec';
+
+    const $ = (id) => document.getElementById(id);
+    const loginForm = $('loginForm');
+    const errBox = $('err');
+    const okBox = $('ok');
+    const loginBox = $('login');
+    const nameZhEl = $('nameZh');
+    const nameEnEl = $('nameEn');
+    const tsEl = $('ts');
+    const quizLink = $('quizLink');
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errBox.style.display = 'none';
+
+      const username = $('username').value.trim();
+      const password = $('password').value.trim();
+      const token = $('token').value.trim();
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, token })
+        });
+
+        // 若 GAS 設為任何人可存取，通常可直接讀到 JSON
+        const data = await res.json();
+
+        if (data && data.success) {
+          // 顯示姓名與時間
+          nameZhEl.textContent = data.nameZh || '';
+          nameEnEl.textContent = data.nameEn || '';
+          tsEl.textContent = data.timestamp ? `時間：${data.timestamp}` : '';
+
+          // 設定問卷連結
+          quizLink.href = data.url;
+
+          // 切換畫面
+          loginBox.style.display = 'none';
+          okBox.style.display = 'block';
+        } else {
+          errBox.style.display = 'block';
+        }
+      } catch (err) {
+        console.error(err);
+        // 若發生 CORS 或其他問題，可提示再試
+        errBox.textContent = '連線出現問題，請稍後再試或聯絡老師。';
+        errBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
